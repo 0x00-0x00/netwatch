@@ -1,0 +1,133 @@
+#!/bin/bash
+
+PROGRAM_NAME="NetWatch"
+VERSION="0.0.1"
+log_folder="logs"
+
+log() {
+    echo -e "\033[092mINFO\033[0m: $1";
+    return 0;
+}
+
+
+error() {
+    echo -e "\033[091mERROR\033[0m: $1";
+    return 0;
+}
+
+
+notification() {
+    log "Sending notification to operator"
+    push -t "$1" -m "$2" -i "$3" > /dev/null 2>&1;
+    if [[ $? == 0 ]]; then
+        log "Notification sent."
+        return 0;
+    else
+        error "Notification could not be sent.";
+        return 1;
+    fi
+}
+
+
+while getopts "r:i:" opt; do
+    case $opt in
+        r) log "IP address file set to: $OPTARG"; ip_address=$OPTARG;;
+        i) log "SimplePush ID set to: $OPTARG"; push_id=$OPTARG;;
+        ?) error "Invalid argument."; exit 1;;
+    esac
+done
+
+
+if [[ $# < 2 ]]; then
+    echo "Uso: $0 -r IP -i SIMPLEPUSH_ID";
+    exit 0;
+fi
+
+# Check all the arguments that are going to be used.
+arg_check() {
+    if [[ $ip_address == "" ]] || [[ $push_id == "" ]]; then
+        error "IP address file or Push ID can not be null.";
+        exit 1;
+    fi
+
+    if [[ ! -d $log_folder ]]; then
+        log "Creating folder for logs";
+        mkdir $log_folder;
+    fi
+}
+
+
+check_alive() {
+    #  Check if has arguments
+    if [[ $1 == "" ]]; then
+        return 1;
+    fi
+
+    #  Send icmp to check host alive
+    ping -c 1 -t 1 $1 > /dev/null 2>&1
+    if [[ $? == 0 ]]; then
+        return 0
+    else
+        return 1
+        notification $PROGRAM_NAME "Host $1 is dead" $push_id
+    fi
+}
+
+
+nmap_start() {
+    #
+    # Generate a timestamp and do scanning on host supplied by arguments.
+    # Store the data into logs/ folder
+    #
+    timestamp=$(date +%Y-%m-%d_%H:%M:%S_);
+    log "Starting nmap scan on host $1"
+    nmap -sT -A $1 -p1-65535 -oA $log_folder/$timestamp$(echo $1 | sed 's/\./\-/g') > /dev/null 2>&1;
+
+    if [[ $? == 0 ]]; then
+        log "Nmap scan for host $1 completed.";
+        return 0;
+    else
+        error "Nmap scan for host $1 failed.";
+        notification $PROGRAM_NAME "Nmap scan for host $1 failed." $push_id
+        return 1;
+    fi
+
+}
+
+read_file() {
+    ips=();
+    if [[ ! -f $ip_address ]]; then
+        error "IP file could not be found. Use ./nwc to add some."
+        exit 1;
+    fi
+
+    while read -r line; do
+        ips+=($line);
+    done <<< "$(cat $ip_address)";
+
+    for ip in "${ips[@]}"; do
+        init $ip;
+    done;
+    return 0;
+}
+
+
+#  This is the main function of script.
+init() {
+    check_alive $1
+    if [[ $? != 0 ]]; then
+        error "Host $1 is down.";
+        exit 1;
+    else
+        log "Host $1 is online";
+    fi
+    nmap_start $1
+    if [[ $? != 0 ]]; then
+        return 1;
+    fi;
+    return 0;
+}
+
+arg_check
+read_file
+notification $PROGRAM_NAME "NetWatch Monitoring session $(date +%H:M:S) has been completed." $push_id;
