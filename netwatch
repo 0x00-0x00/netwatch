@@ -1,8 +1,10 @@
 #!/bin/bash
 
-PROGRAM_NAME="NetWatch"
-VERSION="0.0.1"
-log_folder="logs"
+PROGRAM_NAME="NetWatch";
+VERSION="0.0.1";
+log_folder="logs";
+web_page="index.html";
+base_page="base.html";
 
 log() {
     echo -e "\033[092mINFO\033[0m: $1";
@@ -57,6 +59,24 @@ arg_check() {
 }
 
 
+write_stats() {
+    # Arguments:
+    # int status, char *ip
+    #
+    local stat=""
+    if [[ $1 == 0 ]]; then
+        stat=" style='color: green'> Online";
+    else
+        stat=" style='color: red'> Offline";
+    fi
+    log "Updating stats web page"
+    echo -e "\t\t<tr>\t\t\t<td> $2 </td><td$stat </td></tr>" >> $web_page;
+}
+
+complete_webpage() {
+    echo -e "\n\t</table>\n</div>\n</body>\n</html>\n" >> $web_page;
+}
+
 check_alive() {
     #  Check if has arguments
     if [[ $1 == "" ]]; then
@@ -65,7 +85,9 @@ check_alive() {
 
     #  Send icmp to check host alive
     ping -c 1 -t 1 $1 > /dev/null 2>&1
-    if [[ $? == 0 ]]; then
+    ret=$?;
+    write_stats $ret $1
+    if [[ $ret == 0 ]]; then
         return 0
     else
         return 1
@@ -79,7 +101,7 @@ nmap_start() {
     # Generate a timestamp and do scanning on host supplied by arguments.
     # Store the data into logs/ folder
     #
-    timestamp=$(date +%Y-%m-%d_%H:%M:%S_);
+    timestamp=$(date +%Y-%m-%d_%H-%M-%S_);
     log "Starting nmap scan on host $1"
     nmap -sT -A $1 -p1-65535 -oA $log_folder/$timestamp$(echo $1 | sed 's/\./\-/g') > /dev/null 2>&1;
 
@@ -128,6 +150,19 @@ init() {
     return 0;
 }
 
+
 arg_check
-read_file
-notification $PROGRAM_NAME "NetWatch Monitoring session $(date +%H:M:S) has been completed." $push_id;
+
+# Overwrite the current index page with base.html for next monitoring
+# session.
+cp $base_page $web_page;
+if [[ $? != 0 ]]; then
+    error "Error overwriting web page.";
+    exit 1;
+fi
+
+read_file  # main function for ping and scanning for each host
+
+complete_webpage;  # terminate the tags from the index.html page
+
+notification $PROGRAM_NAME "NetWatch Monitoring session $(date +%H:%M:%S) has been completed." $push_id;

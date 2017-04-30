@@ -1,0 +1,9 @@
+{
+  "name": "NetWatch",
+  "version": "0.0.1",
+  "description": "NetWatch",
+  "dependencies": {
+    "connect": "",
+    "serve-static": ""
+  }
+}

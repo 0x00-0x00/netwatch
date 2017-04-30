@@ -1,0 +1,37 @@
+body {
+    background-color: #b0c5da;
+}
+
+table {
+    margin-left: 20%;
+    margin-right: 20%;
+    border: 1px solid #000;
+    width: 60%;
+}
+
+th {
+    background-color: #4253d7;
+    height: 50px;
+}
+
+td {
+    text-align: center;
+    background-color: #8997ff;
+}
+
+.log_button {
+    background-color: #7b8af4;
+    border: 1px solid #000;
+    display: block;
+    left: 0;
+    width: 50px;
+}
+
+#menu {
+    background-color: #4253d7;
+    border: 1px solid #000;
+    width: 60%;
+    margin-right: 20%;
+    margin-left: 20%;
+    margin-bottom: 15px;
+}
